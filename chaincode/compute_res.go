@@ -1,4 +1,4 @@
-package chaincode
+package main
 
 type ComputeRes struct {
 	Id string `json:"Id"`

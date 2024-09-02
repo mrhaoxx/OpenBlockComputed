@@ -1,4 +1,4 @@
-module github.com/mrhaoxx/OpenBlockComputed
+module github.com/mrhaoxx/OpenBlockComputed/chaincode
 
 go 1.22.2
 

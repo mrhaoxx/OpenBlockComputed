@@ -170,7 +170,7 @@ func initLedger(contract *client.Contract) {
 	checkErr(err, contract)
 
 	if err != nil {
-		fmt.Printf("failed to submit transaction: %w", err)
+		fmt.Printf("failed to submit transaction: %v", err)
 	}
 
 	fmt.Printf("*** Transaction committed successfully\n")

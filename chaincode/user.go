@@ -1,4 +1,4 @@
-package chaincode
+package main
 
 type User struct {
 	UserName string `json:"UserName"`

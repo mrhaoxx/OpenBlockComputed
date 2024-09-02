@@ -1,4 +1,4 @@
-module github.com/mrhaoxx/OpenBlockComputeBackend
+module github.com/mrhaoxx/OpenBlockComputed
 
 go 1.22.2
 
