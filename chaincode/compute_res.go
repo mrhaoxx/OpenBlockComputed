@@ -18,8 +18,7 @@ type ComputeRes struct {
 
 	UserOrgDueDate int `json:"UserOrgDueDate"`
 
-	User        string `json:"User"`
-	UserDueDate int    `json:"UserDueDate"`
+	User string `json:"User"`
 
 	OS   string `json:"OS"`
 	Arch string `json:"Arch"`
@@ -201,7 +200,6 @@ func (s *SmartContract) AssignUser(ctx contractapi.TransactionContextInterface, 
 	}
 
 	res.User = user
-	res.UserDueDate = userDueDate
 
 	assetJSON, err := json.Marshal(res)
 	if err != nil {
@@ -382,7 +380,7 @@ func (s *SmartContract) ClaimRent(ctx contractapi.TransactionContextInterface, i
 		return err
 	}
 
-	if time.UnixMicro(int64(asset.UserDueDate)).Before(_time.AsTime()) {
+	if time.UnixMicro(int64(asset.UserOrgDueDate)).Before(_time.AsTime()) {
 		asset.UserOrg = org
 		asset.UserOrgDueDate = 0
 		return s.PutComputeRes(ctx, id, asset)
