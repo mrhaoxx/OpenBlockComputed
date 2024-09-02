@@ -76,3 +76,12 @@ func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, 
 
 	return nil
 }
+
+func contains(val string, collection []string) bool {
+	for _, v := range collection {
+		if val == v {
+			return true
+		}
+	}
+	return false
+}

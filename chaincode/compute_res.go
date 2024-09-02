@@ -20,15 +20,21 @@ type ComputeRes struct {
 	User        string `json:"User"`
 	UserDueDate int    `json:"UserDueDate"`
 
-	CPUSKU string `json:"CPUSKU"`
-	CPUNum int    `json:"CPUNum"`
+	OS   string `json:"OS"`
+	Arch string `json:"Arch"`
+
+	CPUSKU     string `json:"CPUSKU"`
+	CPUSockets string `json:"CPUSockets"`
+	CPUCores   string `json:"CPUCores"`
 
 	GPUSKU string `json:"GPUSKU"`
-	GPUNum int    `json:"GPUNum"`
+	GPUNum string `json:"GPUNum"`
 
-	MemorySize int `json:"MemorySize"`
+	MemorySize string `json:"MemorySize"`
 
 	ConnectionAbilities string `json:"ConnectionAbilities"`
+
+	Ip string `json:"Ip"`
 }
 
 func (c *ComputeRes) IsAvailable() bool {
@@ -64,19 +70,10 @@ func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInter
 	}
 
 	res := ComputeRes{
-		Id:                  id,
-		State:               "unverified",
-		OwnerOrg:            org,
-		UserOrg:             org,
-		UserOrgDueDate:      0,
-		User:                "",
-		UserDueDate:         0,
-		CPUSKU:              "",
-		CPUNum:              0,
-		GPUSKU:              "",
-		GPUNum:              0,
-		MemorySize:          0,
-		ConnectionAbilities: "",
+		Id:       id,
+		State:    "unverified",
+		OwnerOrg: org,
+		UserOrg:  org,
 	}
 
 	assetJSON, err := json.Marshal(res)
@@ -163,4 +160,107 @@ func (s *SmartContract) AssignUser(ctx contractapi.TransactionContextInterface, 
 	}
 
 	return s.putState(ctx, assetComputeRes, id, assetJSON)
+}
+
+type ComputeResUpdate struct {
+	Os         string `json:"os"`
+	Arch       string `json:"arch"`
+	CpuSKU     string `json:"cpusku"`
+	CpuCores   string `json:"cpucores"`
+	CpuSockets string `json:"cpusockets"`
+	GpuSKU     string `json:"gpu"`
+	GpuNum     string `json:"gpunums"`
+	Network    string `json:"network"`
+	Ip         string `json:"ip"`
+	Ram        string `json:"ram"`
+}
+
+func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInterface, Id string, data string) error {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return err
+	}
+
+	usr, err := s.getUserInfo(ctx, org)
+
+	if err != nil {
+		return fmt.Errorf("failed to get user info: %v", err)
+	}
+
+	if usr.Role != "admin" {
+		return fmt.Errorf("user %s is not authorized to update a compute resource", usr.UserName)
+	}
+
+	res, err := s.readState(ctx, assetComputeRes, Id)
+
+	if err != nil {
+		return fmt.Errorf("can not find asset %s %v", Id, err)
+	}
+
+	var asset ComputeRes
+	err = json.Unmarshal(res, &asset)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
+	}
+
+	var u_res ComputeResUpdate
+	err = json.Unmarshal([]byte(data), &u_res)
+	if err != nil {
+		return err
+	}
+
+	asset.Arch = u_res.Arch
+	asset.CPUCores = u_res.CpuCores
+	asset.CPUSKU = u_res.CpuSKU
+	asset.CPUSockets = u_res.CpuSockets
+	asset.ConnectionAbilities = u_res.Network
+	asset.GPUNum = u_res.GpuNum
+	asset.GPUSKU = u_res.GpuSKU
+	asset.Ip = u_res.Ip
+
+	asset.MemorySize = u_res.Ram
+	asset.OS = u_res.Os
+
+	asset.State = "verified"
+
+	assetJSON, err := json.Marshal(asset)
+	if err != nil {
+		return err
+	}
+
+	return s.putState(ctx, assetComputeRes, Id, assetJSON)
+
+}
+
+func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInterface, Id string) (string, error) {
+
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
+	usr, err := s.getUserInfo(ctx, org)
+
+	if err != nil {
+		return "", err
+	}
+
+	Basset, err := s.readState(ctx, assetComputeRes, Id)
+
+	if err != nil {
+		return "", err
+	}
+
+	if usr.Role != "admin" && !contains(Id, usr.ComputeResList) {
+		return "", fmt.Errorf("unauthorized access")
+	}
+
+	var asset ComputeRes
+	err = json.Unmarshal(Basset, &asset)
+	if err != nil {
+		return "", fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
+	}
+
+	return asset.Ip, nil
 }

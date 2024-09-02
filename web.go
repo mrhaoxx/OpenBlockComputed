@@ -50,6 +50,8 @@ func InitWebServer() {
 		})
 	})
 
+	r.GET("/api/v1/access/:id", connectToBackend)
+
 	log.Info().Msg("Web server starting")
 	go r.Run(":8080")
 }
