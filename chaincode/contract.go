@@ -16,4 +16,6 @@ const (
 
 	assetComputeRes = "assetComputeRes"
 	assetUser       = "assetUsers"
+
+	assetMarket = "market"
 )

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
 )
@@ -39,6 +40,50 @@ type ComputeRes struct {
 
 func (c *ComputeRes) IsAvailable() bool {
 	return c.User == ""
+}
+
+func (s *SmartContract) GetComputeRes(ctx contractapi.TransactionContextInterface, id string) (*ComputeRes, error) {
+
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.readState(ctx, assetComputeRes, id)
+	if err != nil {
+		return nil, err
+	}
+
+	var asset ComputeRes
+	err = json.Unmarshal(res, &asset)
+	if err != nil {
+		return nil, err
+	}
+
+	if asset.OwnerOrg != org && asset.UserOrg != org {
+		return nil, fmt.Errorf("unauthorized access")
+	}
+
+	return &asset, nil
+}
+
+func (s *SmartContract) PutComputeRes(ctx contractapi.TransactionContextInterface, id string, res *ComputeRes) error {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return err
+	}
+
+	data, err := json.Marshal(*res)
+
+	if err != nil {
+		return err
+	}
+
+	if org != res.OwnerOrg {
+		return fmt.Errorf("org != OwnerOrg")
+	}
+
+	return s.putState(ctx, assetComputeRes, id, data)
 }
 
 func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInterface, id string) error {
@@ -87,7 +132,7 @@ func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInter
 }
 
 func (s *SmartContract) ListComputeRes(ctx contractapi.TransactionContextInterface) ([]*ComputeRes, error) {
-	_, err := verifyClientOrgMatchesPeerOrg(ctx)
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +155,10 @@ func (s *SmartContract) ListComputeRes(ctx contractapi.TransactionContextInterfa
 		err = json.Unmarshal(queryResponse.Value, &asset)
 		if err != nil {
 			return nil, err
+		}
+
+		if asset.OwnerOrg != org && asset.UserOrg != org {
+			continue
 		}
 
 		assets = append(assets, &asset)
@@ -233,7 +282,6 @@ func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInter
 }
 
 func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInterface, Id string) (string, error) {
-
 	org, err := verifyClientOrgMatchesPeerOrg(ctx)
 
 	if err != nil {
@@ -262,5 +310,84 @@ func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInte
 		return "", fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
 	}
 
+	if asset.UserOrg != org {
+		return "", fmt.Errorf("permision deined")
+	}
+
 	return asset.Ip, nil
+}
+
+func (s *SmartContract) ListForRent(ctx contractapi.TransactionContextInterface, Id string, avail int, price int) error {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	usr, err := s.getUserInfo(ctx, org)
+
+	if err != nil {
+		return err
+	}
+
+	Basset, err := s.readState(ctx, assetComputeRes, Id)
+
+	if err != nil {
+		return err
+	}
+
+	if usr.Role != "admin" {
+		return fmt.Errorf("unauthorized access")
+	}
+
+	var asset ComputeRes
+	err = json.Unmarshal(Basset, &asset)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
+	}
+
+	if asset.OwnerOrg != org {
+		return fmt.Errorf("you can only rent your own asset")
+	}
+
+	if asset.OwnerOrg != asset.UserOrg {
+		return fmt.Errorf("the resource is already rented")
+	}
+
+	return nil
+
+}
+
+func (s *SmartContract) ClaimRent(ctx contractapi.TransactionContextInterface, id string) error {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	asset, err := s.GetComputeRes(ctx, id)
+	if err != nil {
+		return err
+	}
+	if asset.OwnerOrg != org {
+		return fmt.Errorf("only owner can claim a rent")
+	}
+
+	if asset.UserOrg == org {
+		return fmt.Errorf("not rent")
+	}
+
+	_time, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+
+	if time.UnixMicro(int64(asset.UserDueDate)).Before(_time.AsTime()) {
+		asset.UserOrg = org
+		asset.UserOrgDueDate = 0
+		return s.PutComputeRes(ctx, id, asset)
+	} else {
+		return fmt.Errorf("not time to claim")
+	}
+
 }
