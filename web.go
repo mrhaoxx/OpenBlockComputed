@@ -93,6 +93,38 @@ func InitWebServer() {
 		})
 	})
 
+	r.GET("/api/v1/deleteresource/:id", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+		data, err := Invoke("DelComputeRes", id)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
+	r.GET("/api/v1/createresource/:name", func(c *gin.Context) {
+		name := c.Params.ByName("name")
+		data, err := Invoke("CreateComputeRes", name)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
 	r.POST("/api/v1/updateresource/:id", func(c *gin.Context) {
 		id := c.Params.ByName("id")
 

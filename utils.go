@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -60,13 +58,4 @@ func checkErr(err error) {
 		}
 	}
 
-}
-
-// // Format JSON data
-func formatJSON(data []byte) string {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, data, "", "  "); err != nil {
-		panic(fmt.Errorf("failed to parse JSON: %w", err))
-	}
-	return prettyJSON.String()
 }

@@ -33,8 +33,8 @@ var upgrader = websocket.Upgrader{
 }
 
 type windowSize struct {
-	High  int `json:"high"`
-	Width int `json:"width"`
+	High  int `json:"rows"`
+	Width int `json:"cols"`
 }
 
 type sshClient struct {
@@ -62,13 +62,15 @@ func (c *sshClient) getWindowSize() (wdSize *windowSize, err error) {
 		return
 	}
 
-	// log.Println("msg:", string(msg))
+	log.Println("get win size msg:", string(msg))
 
 	wdSize = new(windowSize)
 	if err = json.Unmarshal(msg, wdSize); err != nil {
 		err = fmt.Errorf("json.Unmarshal: %w", err)
 		return
 	}
+	log.Println("wdS:", wdSize)
+
 	return
 }
 
@@ -87,6 +89,8 @@ func (c *sshClient) wsWrite() error {
 			if err := c.conn.WriteMessage(websocket.TextMessage, data[:n]); err != nil {
 				return fmt.Errorf("conn.WriteMessage: %w", err)
 			}
+
+			// log.Println("ws write data:", string(data[:n]))
 		}
 		if readErr != nil {
 			return fmt.Errorf("sessOut.Read: %w", readErr)
@@ -120,14 +124,14 @@ func (c *sshClient) wsRead() error {
 			return fmt.Errorf("connReader.Read: %w", err)
 		}
 
-		// log.Println("data:", string(data))
+		// log.Println("ws read data:", string(data))
 
 		var wdSize windowSize
 		if err := json.Unmarshal(data[:n], &wdSize); err != nil {
 			return fmt.Errorf("json.Unmarshal: %w", err)
 		}
 
-		// log.Println("wdSize:", wdSize)
+		log.Println("wdSize:", wdSize, data[:n])
 
 		if err := c.sess.WindowChange(wdSize.High, wdSize.Width); err != nil {
 			return fmt.Errorf("sess.WindowChange: %w", err)
@@ -138,11 +142,22 @@ func (c *sshClient) wsRead() error {
 func (c *sshClient) bridgeWSAndSSH() {
 	defer c.conn.Close()
 
+	var err error
+
 	wdSize, err := c.getWindowSize()
 	if err != nil {
 		log.Println("bridgeWSAndSSH: getWindowSize:", err)
 		return
 	}
+
+	defer func() {
+		// io.WriteString(
+		if err != nil {
+			c.conn.WriteMessage(websocket.TextMessage, []byte("session closed with err "+err.Error()))
+		} else {
+			c.conn.WriteMessage(websocket.TextMessage, []byte("session closed"))
+		}
+	}()
 
 	// log.Println("wdSize:", wdSize)
 
@@ -150,7 +165,8 @@ func (c *sshClient) bridgeWSAndSSH() {
 	if c.secret != "" {
 		auth = ssh.Password(c.secret)
 	} else {
-		key, err := os.ReadFile(c.keyfile)
+		var key []byte
+		key, err = os.ReadFile(c.keyfile)
 		if err != nil {
 			log.Println("bridgeWSAndSSH: os.ReadFile:", err)
 			return

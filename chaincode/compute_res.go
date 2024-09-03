@@ -302,7 +302,39 @@ func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInter
 	}
 
 	return s.PutComputeRes(ctx, Id, asset)
+}
 
+func (s *SmartContract) DelComputeRes(ctx contractapi.TransactionContextInterface, Id string) error {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return err
+	}
+
+	usr, err := s.getUserInfo(ctx, org)
+
+	if err != nil {
+		return fmt.Errorf("failed to get user info: %v", err)
+	}
+
+	if usr.Role != "admin" {
+		return fmt.Errorf("user %s is not authorized to delete a compute resource", usr.UserName)
+	}
+
+	asset, err := s.GetComputeRes(ctx, Id)
+
+	if err != nil {
+		return err
+	}
+
+	if org != asset.OwnerOrg {
+		return fmt.Errorf("only owner can delete a compute resource")
+	}
+
+	if asset.OwnerOrg != asset.UserOrg {
+		return fmt.Errorf("can't delete a rented compute resource")
+	}
+
+	return ctx.GetStub().DelPrivateData(assetComputeRes, Id)
 }
 
 func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInterface, Id string) (SSHAccessDetails, error) {
@@ -374,4 +406,30 @@ func (s *SmartContract) ClaimRent(ctx contractapi.TransactionContextInterface, i
 		return fmt.Errorf("not time to claim")
 	}
 
+}
+
+func (s *SmartContract) GetConnectionLogs(ctx contractapi.TransactionContextInterface, id string) ([]Access, error) {
+	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	usr, err := s.getUserInfo(ctx, org)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if usr.Role != "admin" {
+		return nil, fmt.Errorf("unauthorized access")
+	}
+
+	asset, err := s.GetComputeRes(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return asset.AccessLogs, nil
 }
