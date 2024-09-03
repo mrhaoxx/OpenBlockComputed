@@ -8,8 +8,22 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
 )
 
+type Access struct {
+	AccessTime int    `json:"AccessTime"`
+	AccessUser string `json:"AccessUser"`
+}
+
+type SSHAccessDetails struct {
+	User string `json:"user"`
+	Pass string `json:"pass"`
+	Addr string `json:"addr"`
+	Idn  string `json:"idn"`
+}
+
 type ComputeRes struct {
 	Id string `json:"Id"`
+
+	Name string `json:"Name"`
 
 	State string `json:"State"`
 
@@ -20,21 +34,11 @@ type ComputeRes struct {
 
 	User string `json:"User"`
 
-	OS   string `json:"OS"`
-	Arch string `json:"Arch"`
+	Details ComputeResUpdate `json:"Details"`
 
-	CPUSKU     string `json:"CPUSKU"`
-	CPUSockets string `json:"CPUSockets"`
-	CPUCores   string `json:"CPUCores"`
+	SSHAccessDetails SSHAccessDetails `json:"SSHAccessDetails"`
 
-	GPUSKU string `json:"GPUSKU"`
-	GPUNum string `json:"GPUNum"`
-
-	MemorySize string `json:"MemorySize"`
-
-	ConnectionAbilities string `json:"ConnectionAbilities"`
-
-	Ip string `json:"Ip"`
+	AccessLogs []Access `json:"AccessLogs"`
 }
 
 func (c *ComputeRes) IsAvailable() bool {
@@ -59,7 +63,7 @@ func (s *SmartContract) GetComputeRes(ctx contractapi.TransactionContextInterfac
 		return nil, err
 	}
 
-	if asset.OwnerOrg != org && asset.UserOrg != org {
+	if asset.UserOrg != org {
 		return nil, fmt.Errorf("unauthorized access")
 	}
 
@@ -78,56 +82,62 @@ func (s *SmartContract) PutComputeRes(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 
-	if org != res.OwnerOrg {
-		return fmt.Errorf("org != OwnerOrg")
+	if org != res.UserOrg {
+		return fmt.Errorf("org != UserOrg")
 	}
 
 	return s.putState(ctx, assetComputeRes, id, data)
 }
 
-func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInterface, id string) error {
+func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInterface, name string) (string, error) {
 
 	org, err := verifyClientOrgMatchesPeerOrg(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	user, err := s.getUserInfo(ctx, org)
 
 	if err != nil {
-		return fmt.Errorf("failed to get user info: %v", err)
+		return "", fmt.Errorf("failed to get user info: %v", err)
 	}
 
 	if user.Role != "admin" {
-		return fmt.Errorf("user %s is not authorized to create a compute resource", user.UserName)
+		return "", fmt.Errorf("user %s is not authorized to create a compute resource", user.UserName)
 	}
+
+	id := ctx.GetStub().GetTxID()
 
 	rid, err := ctx.GetStub().CreateCompositeKey(resKeyType, []string{id})
 
 	if err != nil {
-		return fmt.Errorf("failed to create composite key: %v", err)
+		return "", fmt.Errorf("failed to create composite key: %v", err)
 	}
 
 	existing, err := s.readState(ctx, assetComputeRes, rid)
 	if err == nil && existing != nil {
-		return fmt.Errorf("the asset %s(%s) already exists", id, rid)
+		return "", fmt.Errorf("the asset %s(%s) already exists", id, rid)
 	}
 
 	res := ComputeRes{
 		Id:       id,
+		Name:     name,
 		State:    "unverified",
 		OwnerOrg: org,
 		UserOrg:  org,
+
+		AccessLogs:       []Access{},
+		SSHAccessDetails: SSHAccessDetails{},
 	}
 
 	assetJSON, err := json.Marshal(res)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	fmt.Println("CreateComputeRes", string(assetJSON))
 
-	return s.putState(ctx, assetComputeRes, id, assetJSON)
+	return id, s.putState(ctx, assetComputeRes, id, assetJSON)
 }
 
 func (s *SmartContract) ListComputeRes(ctx contractapi.TransactionContextInterface) ([]*ComputeRes, error) {
@@ -160,12 +170,28 @@ func (s *SmartContract) ListComputeRes(ctx contractapi.TransactionContextInterfa
 			continue
 		}
 
+		if asset.UserOrg != org {
+			asset.User = ""
+			asset.AccessLogs = []Access{}
+
+			// asset.Details.Ip = ""
+			asset.State = "rented"
+			asset.Details = ComputeResUpdate{}
+			asset.SSHAccessDetails = SSHAccessDetails{}
+		}
+
 		assets = append(assets, &asset)
 	}
 
 	fmt.Println("ListComputeRes", assets)
 
 	return assets, nil
+}
+
+func (s *SmartContract) QueryComputeRes(ctx contractapi.TransactionContextInterface, id string) (ComputeRes, error) {
+	a, b := s.GetComputeRes(ctx, id)
+	a.SSHAccessDetails = SSHAccessDetails{}
+	return *a, b
 }
 
 func (s *SmartContract) AssignUser(ctx contractapi.TransactionContextInterface, id string, user string, userDueDate int) error {
@@ -220,9 +246,10 @@ type ComputeResUpdate struct {
 	Network    string `json:"network"`
 	Ip         string `json:"ip"`
 	Ram        string `json:"ram"`
+	Hostname   string `json:"hostname"`
 }
 
-func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInterface, Id string, data string) error {
+func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInterface, Id string) error {
 	org, err := verifyClientOrgMatchesPeerOrg(ctx)
 	if err != nil {
 		return err
@@ -238,122 +265,81 @@ func (s *SmartContract) UpdateComputeRes(ctx contractapi.TransactionContextInter
 		return fmt.Errorf("user %s is not authorized to update a compute resource", usr.UserName)
 	}
 
-	res, err := s.readState(ctx, assetComputeRes, Id)
+	asset, err := s.GetComputeRes(ctx, Id)
 
 	if err != nil {
-		return fmt.Errorf("can not find asset %s %v", Id, err)
+		return err
 	}
 
-	var asset ComputeRes
-	err = json.Unmarshal(res, &asset)
+	data, err := ctx.GetStub().GetTransient()
+
 	if err != nil {
-		return fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
+		return err
 	}
 
 	var u_res ComputeResUpdate
-	err = json.Unmarshal([]byte(data), &u_res)
-	if err != nil {
-		return err
+
+	u_r, ok := data["update"]
+	if ok {
+		err = json.Unmarshal(u_r, &u_res)
+		if err != nil {
+			return err
+		}
+
+		asset.Details = u_res
+		asset.State = "normal"
 	}
 
-	asset.Arch = u_res.Arch
-	asset.CPUCores = u_res.CpuCores
-	asset.CPUSKU = u_res.CpuSKU
-	asset.CPUSockets = u_res.CpuSockets
-	asset.ConnectionAbilities = u_res.Network
-	asset.GPUNum = u_res.GpuNum
-	asset.GPUSKU = u_res.GpuSKU
-	asset.Ip = u_res.Ip
+	var s_res SSHAccessDetails
+	s_r, ok := data["ssh"]
+	if ok {
+		err = json.Unmarshal(s_r, &s_res)
+		if err != nil {
+			return err
+		}
 
-	asset.MemorySize = u_res.Ram
-	asset.OS = u_res.Os
-
-	asset.State = "verified"
-
-	assetJSON, err := json.Marshal(asset)
-	if err != nil {
-		return err
+		asset.SSHAccessDetails = s_res
 	}
 
-	return s.putState(ctx, assetComputeRes, Id, assetJSON)
+	return s.PutComputeRes(ctx, Id, asset)
 
 }
 
-func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInterface, Id string) (string, error) {
+func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInterface, Id string) (SSHAccessDetails, error) {
 	org, err := verifyClientOrgMatchesPeerOrg(ctx)
 
 	if err != nil {
-		return "", err
+		return SSHAccessDetails{}, err
 	}
 
 	usr, err := s.getUserInfo(ctx, org)
 
 	if err != nil {
-		return "", err
-	}
-
-	Basset, err := s.readState(ctx, assetComputeRes, Id)
-
-	if err != nil {
-		return "", err
+		return SSHAccessDetails{}, err
 	}
 
 	if usr.Role != "admin" && !contains(Id, usr.ComputeResList) {
-		return "", fmt.Errorf("unauthorized access")
+		return SSHAccessDetails{}, fmt.Errorf("unauthorized access")
 	}
 
-	var asset ComputeRes
-	err = json.Unmarshal(Basset, &asset)
-	if err != nil {
-		return "", fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
-	}
-
-	if asset.UserOrg != org {
-		return "", fmt.Errorf("permision deined")
-	}
-
-	return asset.Ip, nil
-}
-
-func (s *SmartContract) ListForRent(ctx contractapi.TransactionContextInterface, Id string, avail int, price int) error {
-	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	asset, err := s.GetComputeRes(ctx, Id)
 
 	if err != nil {
-		return err
+		return SSHAccessDetails{}, err
 	}
 
-	usr, err := s.getUserInfo(ctx, org)
-
+	times, err := ctx.GetStub().GetTxTimestamp()
 	if err != nil {
-		return err
+		return SSHAccessDetails{}, err
 	}
 
-	Basset, err := s.readState(ctx, assetComputeRes, Id)
+	asset.AccessLogs = append(asset.AccessLogs, Access{
+		AccessTime: int(times.AsTime().UnixMicro()),
+		AccessUser: usr.UserName,
+	})
 
-	if err != nil {
-		return err
-	}
-
-	if usr.Role != "admin" {
-		return fmt.Errorf("unauthorized access")
-	}
-
-	var asset ComputeRes
-	err = json.Unmarshal(Basset, &asset)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal asset %s %v", Id, err)
-	}
-
-	if asset.OwnerOrg != org {
-		return fmt.Errorf("you can only rent your own asset")
-	}
-
-	if asset.OwnerOrg != asset.UserOrg {
-		return fmt.Errorf("the resource is already rented")
-	}
-
-	return nil
-
+	s.PutComputeRes(ctx, Id, asset)
+	return asset.SSHAccessDetails, nil
 }
 
 func (s *SmartContract) ClaimRent(ctx contractapi.TransactionContextInterface, id string) error {

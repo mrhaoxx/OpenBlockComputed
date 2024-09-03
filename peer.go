@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const (
+var (
 	mspID        = "Org1MSP"
 	cryptoPath   = "/home/star/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com"
 	certPath     = cryptoPath + "/users/User1@org1.example.com/msp/signcerts"
@@ -26,8 +26,27 @@ const (
 var contract *client.Contract
 var network *client.Network
 
+func TestEnv(name string, val *string) {
+	d, ok := os.LookupEnv(name)
+	if ok {
+		*val = d
+	}
+}
+
 func init() {
+
+	mspPath := cryptoPath + "/users/User1@org1.example.com/msp"
+
+	TestEnv("CORE_PEER_LOCALMSPID", &mspID)
+	TestEnv("CORE_PEER_TLS_ROOTCERT_FILE", &tlsCertPath)
+	TestEnv("CORE_PEER_MSPCONFIGPATH", &mspPath)
+	TestEnv("CORE_PEER_ADDRESS", &peerEndpoint)
+
+	certPath = mspPath + "/signcerts"
+	keyPath = mspPath + "/keystore"
+
 	clientConnection := newGrpcConnection()
+
 	// defer clientConnection.Close()
 
 	id := newIdentity()

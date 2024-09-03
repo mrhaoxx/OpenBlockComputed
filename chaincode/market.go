@@ -246,3 +246,30 @@ func (s *SmartContract) EndMarketElement(ctx contractapi.TransactionContextInter
 
 	return s.PutComputeRes(ctx, res.Res.Id, &res.Res)
 }
+
+func (s *SmartContract) ListMarketElements(ctx contractapi.TransactionContextInterface) ([]*ResMarket, error) {
+	resultsIterator, err := ctx.GetStub().GetPrivateDataByRange(assetMarket, "", "")
+	if err != nil {
+		return nil, err
+	}
+	defer resultsIterator.Close()
+
+	var res []*ResMarket
+	for resultsIterator.HasNext() {
+		result, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var element ResMarket
+		err = json.Unmarshal(result.Value, &element)
+		if err != nil {
+			return nil, err
+		}
+		if element.Status != "ended" {
+			res = append(res, &element)
+		}
+	}
+
+	return res, nil
+}
