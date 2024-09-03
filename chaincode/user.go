@@ -22,6 +22,8 @@ func (s *SmartContract) CreateRootUser(ctx contractapi.TransactionContextInterfa
 		return err
 	}
 
+	rootuser, _ := ctx.GetStub().CreateCompositeKey(userKeyType, []string{org, _rootuser})
+
 	created, _ := s.readState(ctx, assetUser, rootuser)
 
 	if created != nil {
@@ -84,4 +86,17 @@ func (s *SmartContract) getUserInfo(ctx contractapi.TransactionContextInterface,
 
 	return &u, nil
 
+}
+
+type UserInfoStruct struct {
+	User string `json:"user"`
+	Org  string `json:"org"`
+}
+
+func (s *SmartContract) GetUserInfo(ctx contractapi.TransactionContextInterface) (UserInfoStruct, error) {
+	org, _ := ctx.GetClientIdentity().GetMSPID()
+
+	usr, _ := s.GetSubmittingClientIdentity(ctx)
+
+	return UserInfoStruct{User: usr, Org: org}, nil
 }

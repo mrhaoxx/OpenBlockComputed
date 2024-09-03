@@ -18,6 +18,11 @@ import (
 var setupScript string
 
 func InitWebServer() {
+
+	port := "8080"
+
+	TestEnv("PORT", &port)
+
 	gin.SetMode(gin.TestMode)
 
 	r := gin.Default()
@@ -26,7 +31,10 @@ func InitWebServer() {
 		id := c.Params.ByName("id")
 		c.Writer.Header().Set("Content-Type", "text/plain")
 
-		c.String(200, strings.ReplaceAll(setupScript, "$1", id))
+		_r := strings.ReplaceAll(setupScript, "$1", id)
+		_r = strings.ReplaceAll(_r, "$2", c.Request.Host)
+
+		c.String(200, _r)
 	})
 
 	r.GET("/api/v1/query/:func", func(c *gin.Context) {
@@ -125,6 +133,21 @@ func InitWebServer() {
 		})
 	})
 
+	r.GET("/api/v1/whoami", func(c *gin.Context) {
+		data, err := Query("GetUserInfo")
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
 	r.POST("/api/v1/updateresource/:id", func(c *gin.Context) {
 		id := c.Params.ByName("id")
 
@@ -203,6 +226,54 @@ func InitWebServer() {
 		})
 	})
 
+	r.POST("/api/v1/market/put/:id", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+
+		var result map[string]string
+
+		if err := c.BindJSON(&result); err != nil {
+			c.JSON(400, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+
+		}
+
+		data, err := Invoke("PutOnMarket", id, result["duration"], result["price"])
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
+	r.GET("/api/v1/market/list", func(c *gin.Context) {
+
+		data, err := Query("ListMarketElements")
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+
+	})
 	r.GET("/api/v1/access/:id", connectToBackend)
 
 	r.NoRoute(func(c *gin.Context) {
@@ -222,5 +293,5 @@ func InitWebServer() {
 	})
 
 	log.Info().Msg("Web server starting")
-	go r.Run(":8080")
+	go r.Run(":" + port)
 }

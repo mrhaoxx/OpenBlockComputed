@@ -41,6 +41,7 @@ func init() {
 	TestEnv("CORE_PEER_TLS_ROOTCERT_FILE", &tlsCertPath)
 	TestEnv("CORE_PEER_MSPCONFIGPATH", &mspPath)
 	TestEnv("CORE_PEER_ADDRESS", &peerEndpoint)
+	TestEnv("CORE_GATEWAY_PEER", &gatewayPeer)
 
 	certPath = mspPath + "/signcerts"
 	keyPath = mspPath + "/keystore"

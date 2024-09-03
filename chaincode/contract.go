@@ -12,7 +12,7 @@ const (
 	userKeyType = "User"
 	resKeyType  = "ComputeRes"
 
-	rootuser = "RootUser"
+	_rootuser = "RootUser"
 
 	assetComputeRes = "assetComputeRes"
 	assetUser       = "assetUsers"

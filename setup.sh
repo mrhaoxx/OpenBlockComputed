@@ -69,7 +69,7 @@ echo "$json_data"
 
 # 发送 JSON 数据通过 curl
 echo -e "${BLUE}Sending data to server...${NC}"
-curl -X POST "https://blk-org1.haoxx.me/api/v1/updateresource/$1" \
+curl -X POST "https://$2/api/v1/updateresource/$1" \
 -H "Content-Type: application/json" \
 -d "$json_data"
 
@@ -99,7 +99,7 @@ echo "$json_data"
 
 # 发送 JSON 数据通过 curl
 echo -e "${BLUE}Sending data to server...${NC}"
-curl -X POST "https://blk-org1.haoxx.me/api/v1/updateresourcessh/$1" \
+curl -X POST "https://$2/api/v1/updateresourcessh/$1" \
 -H "Content-Type: application/json" \
 -d "$json_data"
 
