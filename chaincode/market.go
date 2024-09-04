@@ -249,13 +249,18 @@ func (s *SmartContract) EndMarketElement(ctx contractapi.TransactionContextInter
 		return fmt.Errorf("can only end a locked element")
 	}
 
-	res.Res.UserOrg = res.Winner
+	compres, err := s.GetComputeRes(ctx, res.Res.Id)
+	if err != nil {
+		return err
+	}
+
+	compres.UserOrg = res.Winner
 	_time, err := ctx.GetStub().GetTxTimestamp()
 	if err != nil {
 		return err
 	}
 
-	res.Res.UserOrgDueDate = int(_time.AsTime().Add(time.Duration(res.Duration)).UnixMicro())
+	compres.UserOrgDueDate = int(_time.AsTime().Add(time.Duration(res.Duration)).UnixMicro())
 
 	res.Status = "ended"
 
@@ -264,7 +269,7 @@ func (s *SmartContract) EndMarketElement(ctx contractapi.TransactionContextInter
 		return err
 	}
 
-	return s.PutComputeRes(ctx, res.Res.Id, &res.Res)
+	return s.PutComputeRes(ctx, compres.Id, compres)
 }
 
 func (s *SmartContract) ListMarketElements(ctx contractapi.TransactionContextInterface) ([]*ResMarket, error) {

@@ -35,6 +35,8 @@ func connectToBackend(c *gin.Context) {
 		log.Err(err).Str("data", string(details)).Msg("failed to unmarshal connection details")
 	}
 
+	log.Printf("ssh details: %+v", sshDetails)
+
 	hdr := sshHandler{
 		addr:    sshDetails.Addr,
 		user:    sshDetails.User,

@@ -63,7 +63,7 @@ func (s *SmartContract) GetComputeRes(ctx contractapi.TransactionContextInterfac
 		return nil, err
 	}
 
-	if asset.UserOrg != org {
+	if asset.UserOrg != org && asset.OwnerOrg != org {
 		return nil, fmt.Errorf("unauthorized access")
 	}
 
@@ -71,7 +71,7 @@ func (s *SmartContract) GetComputeRes(ctx contractapi.TransactionContextInterfac
 }
 
 func (s *SmartContract) PutComputeRes(ctx contractapi.TransactionContextInterface, id string, res *ComputeRes) error {
-	org, err := verifyClientOrgMatchesPeerOrg(ctx)
+	_, err := verifyClientOrgMatchesPeerOrg(ctx)
 	if err != nil {
 		return err
 	}
@@ -82,9 +82,9 @@ func (s *SmartContract) PutComputeRes(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 
-	if org != res.UserOrg {
-		return fmt.Errorf("org != UserOrg")
-	}
+	// if org != res.UserOrg {
+	// 	return fmt.Errorf("org != UserOrg")
+	// }
 
 	return s.putState(ctx, assetComputeRes, id, data)
 }
