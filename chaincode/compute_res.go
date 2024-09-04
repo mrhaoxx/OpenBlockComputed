@@ -122,7 +122,7 @@ func (s *SmartContract) CreateComputeRes(ctx contractapi.TransactionContextInter
 	res := ComputeRes{
 		Id:       id,
 		Name:     name,
-		State:    "unverified",
+		State:    "uninitialized",
 		OwnerOrg: org,
 		UserOrg:  org,
 
@@ -370,7 +370,12 @@ func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInte
 		AccessUser: usr.UserName,
 	})
 
-	s.PutComputeRes(ctx, Id, asset)
+	err = s.PutComputeRes(ctx, Id, asset)
+
+	if err != nil {
+		return SSHAccessDetails{}, err
+	}
+
 	return asset.SSHAccessDetails, nil
 }
 

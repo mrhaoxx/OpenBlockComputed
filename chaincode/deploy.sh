@@ -2,7 +2,8 @@ cd /home/star/fabric-samples/test-network
 
 ./network.sh down
 ./network.sh up createChannel -ca -c mychannel 
-./network.sh deployCC -ccn openbc -ccp ~/OpenBlockComputed/chaincode -ccl go -ccep "OR('Org1MSP.peer','Org2MSP.peer')" -cccg '/home/star/OpenBlockComputed/chaincode/collections_config.json'  -ccep "OR('Org1MSP.peer','Org2MSP.peer')"
+./addOrg3/addOrg3.sh up
+./network.sh deployCC -ccn openbc -ccp ~/OpenBlockComputed/chaincode -ccl go -ccep "OR('Org1MSP.peer','Org2MSP.peer', 'Org3MSP.peer')" -cccg '/home/star/OpenBlockComputed/chaincode/collections_config.json'  -ccep "OR('Org1MSP.peer','Org2MSP.peer', 'Org3MSP.peer')"
 
 
 # export CORE_PEER_TLS_ENABLED=true

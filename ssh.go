@@ -188,6 +188,8 @@ func (c *sshClient) bridgeWSAndSSH() {
 		// It should not be used for production code.
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
+	c.conn.WriteMessage(websocket.TextMessage, []byte("Connecting to remote server...\r\n"))
+
 	c.client, err = ssh.Dial("tcp", c.addr, config)
 	if err != nil {
 		log.Println("bridgeWSAndSSH: ssh.Dial:", err)

@@ -18,7 +18,7 @@ func connectToBackend(c *gin.Context) {
 
 	id := c.Param("id")
 
-	details, err := Query("GetConnectDetails", id)
+	details, err := Invoke("GetConnectDetails", id)
 
 	if err != nil {
 		log.Err(err).Str("data", string(details)).Msg("failed to get connection details")

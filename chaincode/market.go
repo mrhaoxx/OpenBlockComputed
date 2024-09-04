@@ -11,10 +11,13 @@ import (
 type BuyerInfo struct {
 	Org   string `json:"org"`
 	Price int    `json:"price"`
+	Date  int    `json:"date"`
 }
 
 type ResMarket struct {
+	Id     string `json:"id"`
 	Status string `json:"status"`
+	Date   int    `json:"date"`
 
 	Res        ComputeRes `json:"resource"`
 	Price      int        `json:"price"`
@@ -60,6 +63,8 @@ func (s *SmartContract) putOnMarket(ctx contractapi.TransactionContextInterface,
 
 	var err error
 
+	res.Id = id
+
 	if res.OwnerOrg == "" {
 		res.OwnerOrg, err = ctx.GetClientIdentity().GetMSPID()
 		if err != nil {
@@ -71,6 +76,12 @@ func (s *SmartContract) putOnMarket(ctx contractapi.TransactionContextInterface,
 	}
 
 	res.Status = "open"
+
+	_time, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return "", err
+	}
+	res.Date = int(_time.AsTime().UnixMicro())
 
 	res.Buyers = make(map[string]BuyerInfo)
 
@@ -136,9 +147,15 @@ func (s *SmartContract) MakePrice(ctx contractapi.TransactionContextInterface, i
 		return fmt.Errorf("you can't make price lower than owner's price")
 	}
 
+	_time, err := ctx.GetStub().GetTxTimestamp()
+	if err != nil {
+		return err
+	}
+
 	res.Buyers[org] = BuyerInfo{
 		Org:   org,
 		Price: price,
+		Date:  int(_time.AsTime().UnixMicro()),
 	}
 
 	return s.putResMarketElement(ctx, id, res)
@@ -198,6 +215,9 @@ func (s *SmartContract) PutOnMarket(ctx contractapi.TransactionContextInterface,
 	if asset.OwnerOrg != org {
 		return "", fmt.Errorf("only owner can market a res")
 	}
+
+	asset.SSHAccessDetails = SSHAccessDetails{}
+	asset.AccessLogs = []Access{}
 
 	return s.putOnMarket(ctx, ResMarket{
 		Status:   "open",
@@ -272,4 +292,12 @@ func (s *SmartContract) ListMarketElements(ctx contractapi.TransactionContextInt
 	}
 
 	return res, nil
+}
+
+func (s *SmartContract) GetMarketElement(ctx contractapi.TransactionContextInterface, id string) (ResMarket, error) {
+	res, err := s.getResMarketElement(ctx, id)
+	if err != nil {
+		return ResMarket{}, err
+	}
+	return *res, nil
 }

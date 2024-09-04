@@ -116,6 +116,21 @@ func InitWebServer() {
 			"data":    string(data),
 		})
 	})
+	r.GET("/api/v1/accesslogs/:id", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+		data, err := Query("GetConnectionLogs", id)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
 
 	r.GET("/api/v1/createresource/:name", func(c *gin.Context) {
 		name := c.Params.ByName("name")
@@ -241,6 +256,45 @@ func InitWebServer() {
 		}
 
 		data, err := Invoke("PutOnMarket", id, result["duration"], result["price"])
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
+	r.GET("/api/v1/market/get/:id", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+
+		data, err := Query("GetMarketElement", id)
+
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
+
+	r.GET("/api/v1/market/price/:id/:price", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+		price := c.Params.ByName("price")
+
+		data, err := Invoke("MakePrice", id, price)
 
 		if err != nil {
 			c.JSON(500, gin.H{
