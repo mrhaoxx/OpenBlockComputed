@@ -27,7 +27,7 @@ func main() {
 
 	initLedger()
 	createAsset(contract)
-	getAllAssets(contract)
+	// getAllAssets(contract)
 
 	select {}
 

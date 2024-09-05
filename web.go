@@ -1,11 +1,8 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -422,19 +419,20 @@ func InitWebServer() {
 	r.GET("/api/v1/access/:id", connectToBackend)
 
 	r.NoRoute(func(c *gin.Context) {
-		targetURL, err := url.Parse("https://10.196.109.185:8080")
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Invalid target URL")
-			return
-		}
+		// targetURL, err := url.Parse("https://10.196.109.185:8080")
+		// if err != nil {
+		// 	c.String(http.StatusInternalServerError, "Invalid target URL")
+		// 	return
+		// }
 
-		proxy := httputil.NewSingleHostReverseProxy(targetURL)
-		proxy.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
+		// proxy := httputil.NewSingleHostReverseProxy(targetURL)
+		// proxy.Transport = &http.Transport{
+		// 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		// }
 
-		c.Request.Host = targetURL.Host
-		proxy.ServeHTTP(c.Writer, c.Request)
+		// c.Request.Host = targetURL.Host
+		// proxy.ServeHTTP(c.Writer, c.Request)
+		http.FileServer(http.Dir("./dist")).ServeHTTP(c.Writer, c.Request)
 	})
 
 	log.Info().Msg("Web server starting")
