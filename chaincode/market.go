@@ -95,7 +95,7 @@ func (s *SmartContract) putOnMarket(ctx contractapi.TransactionContextInterface,
 	return id, err
 }
 
-func (s *SmartContract) removeFromMarket(ctx contractapi.TransactionContextInterface, id string) error {
+func (s *SmartContract) RemoveFromMarket(ctx contractapi.TransactionContextInterface, id string) error {
 	res, err := s.getResMarketElement(ctx, id)
 	if err != nil {
 		return err

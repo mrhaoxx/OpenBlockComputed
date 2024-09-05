@@ -304,6 +304,24 @@ func InitWebServer() {
 		})
 	})
 
+	r.GET("/api/v1/market/delete/:id", func(c *gin.Context) {
+		id := c.Params.ByName("id")
+
+		data, err := Invoke("RemoveFromMarket", id)
+
+		if err != nil {
+			c.JSON(200, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"message": "success",
+			"data":    string(data),
+		})
+	})
 	r.GET("/api/v1/market/get/:id", func(c *gin.Context) {
 		id := c.Params.ByName("id")
 
