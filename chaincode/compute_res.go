@@ -67,6 +67,15 @@ func (s *SmartContract) GetComputeRes(ctx contractapi.TransactionContextInterfac
 		return nil, fmt.Errorf("unauthorized access")
 	}
 
+	if asset.UserOrg != org {
+		asset.User = ""
+		asset.AccessLogs = []Access{}
+		asset.SSHAccessDetails = SSHAccessDetails{}
+		asset.Details.Ip = ""
+
+		asset.State = "rented"
+	}
+
 	return &asset, nil
 }
 
@@ -360,6 +369,10 @@ func (s *SmartContract) GetConnectDetails(ctx contractapi.TransactionContextInte
 		return SSHAccessDetails{}, err
 	}
 
+	if asset.UserOrg != org {
+		return SSHAccessDetails{}, fmt.Errorf("unauthorized access rented res")
+	}
+
 	times, err := ctx.GetStub().GetTxTimestamp()
 	if err != nil {
 		return SSHAccessDetails{}, err
@@ -434,6 +447,10 @@ func (s *SmartContract) GetConnectionLogs(ctx contractapi.TransactionContextInte
 
 	if err != nil {
 		return nil, err
+	}
+
+	if asset.UserOrg != org {
+		return nil, fmt.Errorf("unauthorized access rented res")
 	}
 
 	return asset.AccessLogs, nil

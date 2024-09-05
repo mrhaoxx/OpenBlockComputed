@@ -13,11 +13,11 @@ import (
 )
 
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.
-func checkErr(err error) {
+func checkErr(err error) string {
 
 	if err == nil {
 		log.Debug().Msg("No error")
-		return
+		return ""
 	}
 
 	var endorseErr *client.EndorseError
@@ -46,6 +46,8 @@ func checkErr(err error) {
 	// embedded within the gRPC status error. The following code shows how to extract that.
 	statusErr := status.Convert(err)
 
+	detaild := ""
+
 	details := statusErr.Details()
 	if len(details) > 0 {
 		fmt.Println("Error Details:")
@@ -53,9 +55,13 @@ func checkErr(err error) {
 		for _, detail := range details {
 			switch detail := detail.(type) {
 			case *gateway.ErrorDetail:
-				fmt.Printf("- address: %s, mspId: %s, message: %s\n", detail.Address, detail.MspId, detail.Message)
+				// fmt.Printf("- address: %s, mspId: %s, message: %s\n", detail.Address, detail.MspId, detail.Message)
+				log.Err(err).Str("address", detail.Address).Str("mspId", detail.MspId).Str("message", detail.Message).Msg("Error Detail")
+				detaild += fmt.Sprintf("address: %s, mspId: %s, message: %s\n", detail.Address, detail.MspId, detail.Message)
 			}
 		}
 	}
+
+	return detaild
 
 }

@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -42,7 +44,7 @@ func InitWebServer() {
 		args := c.Request.URL.Query()["args"]
 		data, err := Query(_func, args...)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -59,7 +61,7 @@ func InitWebServer() {
 		args := c.Request.URL.Query()["args"]
 		data, err := Invoke(_func, args...)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -74,7 +76,7 @@ func InitWebServer() {
 	r.GET("/api/v1/listresources", func(c *gin.Context) {
 		data, err := Query("ListComputeRes")
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -89,7 +91,7 @@ func InitWebServer() {
 		id := c.Params.ByName("id")
 		data, err := Query("QueryComputeRes", id)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -105,7 +107,7 @@ func InitWebServer() {
 		id := c.Params.ByName("id")
 		data, err := Invoke("DelComputeRes", id)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -120,7 +122,7 @@ func InitWebServer() {
 		id := c.Params.ByName("id")
 		data, err := Query("GetConnectionLogs", id)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -136,7 +138,7 @@ func InitWebServer() {
 		name := c.Params.ByName("name")
 		data, err := Invoke("CreateComputeRes", name)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -151,7 +153,7 @@ func InitWebServer() {
 	r.GET("/api/v1/whoami", func(c *gin.Context) {
 		data, err := Query("GetUserInfo")
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -169,7 +171,7 @@ func InitWebServer() {
 		var result map[string]string
 
 		if err := c.BindJSON(&result); err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -180,7 +182,7 @@ func InitWebServer() {
 		_d, err := json.Marshal(result)
 
 		if err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -190,7 +192,7 @@ func InitWebServer() {
 		data, err := InvokeTransistent("UpdateComputeRes", map[string][]byte{"update": _d}, id)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -208,7 +210,7 @@ func InitWebServer() {
 		var result map[string]string
 
 		if err := c.BindJSON(&result); err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -219,7 +221,7 @@ func InitWebServer() {
 		_d, err := json.Marshal(result)
 
 		if err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -229,7 +231,7 @@ func InitWebServer() {
 		data, err := InvokeTransistent("UpdateComputeRes", map[string][]byte{"ssh": _d}, id)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -245,7 +247,7 @@ func InitWebServer() {
 		id := c.Params.ByName("id")
 		data, err := Invoke("ClaimRent", id)
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -263,18 +265,33 @@ func InitWebServer() {
 		var result map[string]string
 
 		if err := c.BindJSON(&result); err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
 			return
-
 		}
 
-		data, err := Invoke("PutOnMarket", id, result["duration"], result["price"])
+		t := result["duration"]
+
+		if t == "" {
+			t = "0"
+		}
+
+		_t, err := time.ParseDuration(t)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
+				"message": "error",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		data, err := Invoke("PutOnMarket", id, strconv.Itoa(int(_t.Microseconds())), result["price"])
+
+		if err != nil {
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -293,7 +310,7 @@ func InitWebServer() {
 		data, err := Query("GetMarketElement", id)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -313,7 +330,7 @@ func InitWebServer() {
 		data, err := Invoke("MakePrice", id, price)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -334,7 +351,7 @@ func InitWebServer() {
 		data, err := Invoke("LockMarketElement", id, winner, price)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -353,7 +370,7 @@ func InitWebServer() {
 		data, err := Invoke("EndMarketElement", id)
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})
@@ -371,7 +388,7 @@ func InitWebServer() {
 		data, err := Query("ListMarketElements")
 
 		if err != nil {
-			c.JSON(500, gin.H{
+			c.JSON(200, gin.H{
 				"message": "error",
 				"error":   err.Error(),
 			})

@@ -85,10 +85,6 @@ func (s *SmartContract) putOnMarket(ctx contractapi.TransactionContextInterface,
 
 	res.Buyers = make(map[string]BuyerInfo)
 
-	if err != nil {
-		return "", err
-	}
-
 	err = s.putResMarketElement(ctx, id, &res)
 
 	if err != nil {
@@ -260,7 +256,7 @@ func (s *SmartContract) EndMarketElement(ctx contractapi.TransactionContextInter
 		return err
 	}
 
-	compres.UserOrgDueDate = int(_time.AsTime().Add(time.Duration(res.Duration)).UnixMicro())
+	compres.UserOrgDueDate = int(_time.AsTime().Add(time.Duration(res.Duration * int(time.Microsecond))).UnixMicro())
 
 	res.Status = "ended"
 
